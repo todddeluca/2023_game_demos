@@ -50,12 +50,14 @@ function preload() {
     this.load.image('ground', 'assets/platform.png');
     this.load.image('island', 'assets/small_platform.png');
     this.load.spritesheet('player', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
-    this.load.image('saw', 'assets/saw.png');
+    this.load.image('saw', 'assets/small_saw.png');
 }
 
 const starHeight = 22;
 const islandHeight = 16;
 const trophyHeight = 56;
+const sawHeight = 32;
+const sawWidth = 32;
 
 //Create the game objects in the create function
 function create() {
@@ -107,7 +109,7 @@ function create() {
     //Make the player collide with the platforms
     this.physics.add.collider(player, platforms);
     // this.physics.add.collider(player, stars);
-    this.physics.add.collider(platforms, stars);
+    this.physics.add.collider(stars, platforms);
 
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     this.physics.add.overlap(player, stars, collectStar, null, this);
@@ -115,14 +117,15 @@ function create() {
     //Create a text object for the score
     scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: '32px', fill: '#000' });
 
+    // Add a container for the trophy. Using a group because I don't know what I'm doing.
     trophies = this.physics.add.staticGroup();
     this.physics.add.overlap(player, trophies, collectTrophy, null, this);
 
     saws = this.physics.add.group();
     this.physics.add.collider(player, saws, hitSaw, null, this);
-    this.physics.add.collider(saws, saws);
+    // this.physics.add.collider(saws, saws);
     this.physics.add.collider(saws, platforms);
-    this.physics.add.collider(saws, stars);
+    // this.physics.add.collider(saws, stars);
 
 }
 
@@ -179,19 +182,28 @@ function collectStar(player, star) {
     {
         trophies.create(width / 2, 0 + islandHeight + (trophyHeight / 2), 'trophy');
     }
+
 }
 
 function collectTrophy(player, trophy) {
     trophy.disableBody(true, true);
 
     //  Add and update the score
-    score += 20;
+    score += 30;
     scoreText.setText('Score: ' + score);
 
     //  A new batch of stars to collect
     stars.children.iterate(function (child) {
         child.enableBody(true, child.x, child.y, true, true);
     });
+
+    // an additional saw to avoid
+    saw = saws.create(sawWidth, sawHeight + islandHeight, 'saw');
+    saw.setBounce(1);
+    saw.setCollideWorldBounds(true);
+    saw.setVelocity(Phaser.Math.Between(-200, 200), 20);
+    saw.allowGravity = false;
+
 }
 
 function hitSaw(player, saw)
