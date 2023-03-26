@@ -1,60 +1,117 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+  <title>Vertical Platformer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
 </head>
 <body>
-
-    <script>
-    var config = {
-        type: Phaser.AUTO,
-        width: 800,
-        height: 600,
-        physics: {
-            default: 'arcade',
-            arcade: {
-                gravity: { y: 200 }
-            }
-        },
-        scene: {
-            preload: preload,
-            create: create
+  <div id="game"></div>
+  <script>
+    // Create a new Phaser game instance
+    var game = new Phaser.Game({
+      type: Phaser.AUTO,
+      width: 800,
+      height: 600,
+      parent: 'game',
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: { y: 1000 },
+          debug: false
         }
-    };
+      },
+      scene: {
+        preload: preload,
+        create: create,
+        update: update
+      }
+    });
 
-    var game = new Phaser.Game(config);
+    // Declare some global variables
+    var player;
+    var platforms;
+    var cursors;
+    var score = 0;
+    var scoreText;
 
-    function preload ()
-    {
-        this.load.setBaseURL('http://labs.phaser.io');
-
-        this.load.image('sky', 'assets/skies/space3.png');
-        this.load.image('logo', 'assets/sprites/phaser3-logo.png');
-        this.load.image('red', 'assets/particles/red.png');
+    // Load the assets
+    function preload() {
+      this.load.image('sky', 'https://examples.phaser.io/assets/skies/space3.png');
+      this.load.image('platform', 'https://examples.phaser.io/assets/sprites/platform.png');
+      this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     }
 
-    function create ()
-    {
-        this.add.image(400, 300, 'sky');
+    // Create the game objects
+    function create() {
+      // Add a background image
+      this.add.image(400, 300, 'sky');
 
-        var particles = this.add.particles('red');
+      // Create a group of platforms
+      platforms = this.physics.add.staticGroup();
 
-        var emitter = particles.createEmitter({
-            speed: 100,
-            scale: { start: 1, end: 0 },
-            blendMode: 'ADD'
-        });
+      // Add some platforms at random positions and heights
+      for (var i = 0; i < 10; i++) {
+        var x = Phaser.Math.Between(100, 700);
+        var y = Phaser.Math.Between(50, 550);
+        platforms.create(x, y, 'platform');
+      }
 
-        var logo = this.physics.add.image(400, 100, 'logo');
+      // Create the player sprite and enable physics
+      player = this.physics.add.sprite(400, 550, 'dude');
 
-        logo.setVelocity(100, 200);
-        logo.setBounce(1, 1);
-        logo.setCollideWorldBounds(true);
+      // Set the player's bounce and collide with the world bounds
+      player.setBounce(0.2);
+      player.setCollideWorldBounds(true);
 
-        emitter.startFollow(logo);
+      // Add collision between the player and the platforms
+      this.physics.add.collider(player, platforms);
+
+      // Create the cursor keys for input
+      cursors = this.input.keyboard.createCursorKeys();
+
+      // Create the score text
+      scoreText = this.add.text(16, 16, 'Altitude: 0', { fontSize: '32px', fill: '#fff' });
+
+      // Set the camera to follow the player vertically
+      this.cameras.main.startFollow(player);
+      this.cameras.main.setFollowOffset(0, -300);
     }
-    </script>
 
+    // Update the game logic every frame
+    function update() {
+      // Check if the player is falling off the screen
+      if (player.y > this.cameras.main.scrollY + 600) {
+        // Restart the game
+        this.scene.restart();
+        score = 0;
+      }
+
+      // Update the score based on the player's altitude
+      score = Math.max(score, Math.floor((600 - player.y) / 10));
+      scoreText.setText('Altitude: ' + score);
+
+      // Move the score text with the camera
+      scoreText.y = this.cameras.main.scrollY + 16;
+
+      // Handle the input for horizontal movement
+      if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+        player.anims.play('left', true);
+      }
+      else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+        player.anims.play('right', true);
+      }
+      else {
+        player.setVelocityX(0);
+        player.anims.play('turn');
+      }
+
+      // Handle the input for jumping
+      if (cursors.up.isDown && player.body.touching.down) {
+        player.setVelocityY(-500);
+      }
+    }
+  </script>
 </body>
 </html>
