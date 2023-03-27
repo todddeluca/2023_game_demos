@@ -41,6 +41,8 @@ let stars;
 let trophies;
 let saws;
 let gameOver = false;
+let health = 6;
+let hearts;
 
 
 //Load the assets in the preload function
@@ -51,6 +53,7 @@ function preload() {
     this.load.image('island', 'assets/small_platform.png');
     this.load.spritesheet('player', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     this.load.image('saw', 'assets/small_saw.png');
+    this.load.image('heart', 'assets/heart.png'); // 48x48
 }
 
 const starHeight = 22;
@@ -58,6 +61,8 @@ const islandHeight = 16;
 const trophyHeight = 56;
 const sawHeight = 32;
 const sawWidth = 32;
+const heartWidth = 48;
+const heartHeight = 48;
 
 //Create the game objects in the create function
 function create() {
@@ -126,6 +131,17 @@ function create() {
     // this.physics.add.collider(saws, saws);
     this.physics.add.collider(saws, platforms);
     // this.physics.add.collider(saws, stars);
+
+    // Add a health counter
+    //Create a group of hearts
+    hearts = this.add.group();
+
+    //Create 6 hearts and position them in the top right corner
+    for (let i = 0; i < 6; i++) {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        hearts.create(width - (heartWidth / 2) - (col * heartWidth), heartHeight / 2 + (row * heartHeight), 'heart');
+    }
 
 }
 
@@ -208,13 +224,33 @@ function collectTrophy(player, trophy) {
 
 function hitSaw(player, saw)
 {
-    this.physics.pause();
 
-    player.setTint(0xff0000);
+    //Decrement the health by one
+    health--;
 
-    player.anims.play('turn');
+    //Remove one heart from the group
+    var heart = hearts.getFirstAlive();
+    if (heart) {
+        heart.setActive(false);
+        heart.setVisible(false);
+    }
 
-    gameOver = true;
+    //Check if the health is zero
+    if (health === 0) {
+        //Stop the current scene
+        this.scene.stop('game');
+        //Start another scene that shows the game over screen
+        // this.scene.start('gameover');
+
+        this.physics.pause();
+
+        player.setTint(0xff0000);
+
+        player.anims.play('turn');
+
+        gameOver = true;
+    }
+
 }
 
 </script>
