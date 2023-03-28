@@ -39,11 +39,15 @@ let score = 0;
 let scoreText;
 let stars;
 let trophies;
+let trophyPlatform;
+let ground;
 let saws;
 let gameOver = false;
-let health = 6;
+let maxHealth = 6;
+let health = maxHealth;
 let hearts;
-
+let gameOverText;
+let restartButton;
 
 //Load the assets in the preload function
 function preload() {
@@ -64,14 +68,27 @@ const sawWidth = 32;
 const heartWidth = 48;
 const heartHeight = 48;
 
-//Create the game objects in the create function
-function create() {
-    //Create a static group of platforms
-    platforms = this.physics.add.staticGroup();
-    stars = this.physics.add.group();
+function restart() {
+    hearts.children.iterate(function (heart) {
+        heart.setActive(true);
+        heart.setVisible(true);
+    });
+    health = maxHealth;
 
-    //Create a large platform as the ground at the bottom of the board
-    platforms.create(300, 800, 'ground').setScale(2).refreshBody();
+    score = 0;
+    scoreText.setText('Score: ' + score);
+
+    saws.clear(true); // destroy all saws
+
+    player.setPosition(width/2, height/2);
+
+    initRandomIslands();
+
+}
+
+function initRandomIslands(){
+    platforms.clear(true);
+    stars.clear(true);
 
     //Create 7 small platforms spaced 100 pixels apart vertically
     //Every platform has a star on top
@@ -81,10 +98,45 @@ function create() {
         platforms.create(x, y, 'island');
         stars.create(x, y - (starHeight + islandHeight)/2, 'star');
     }
-    platforms.create(width / 2, 8, 'island');
+
+}
+
+//Create the game objects in the create function
+function create() {
+    // Add a health counter
+    //Create a group of hearts
+    hearts = this.add.group();
+
+    //Create 6 hearts and position them in the top right corner
+    for (let i = maxHealth-1; i > -1; i--) {
+        const row = Math.floor(i / (maxHealth/2));
+        const col = i % (maxHealth/2);
+        hearts.create(width - (heartWidth / 2) - (col * heartWidth), heartHeight / 2 + (row * heartHeight), 'heart');
+    }
+
+    //Create a static group of platforms
+    platforms = this.physics.add.staticGroup();
+    stars = this.physics.add.group();
+
+    //Create a large platform as the ground at the bottom of the board
+    ground = this.physics.add.staticImage(300, 800, 'ground').setScale(2).refreshBody();
+    // platforms.create(300, 800, 'ground').setScale(2).refreshBody();
+    //Create a small island for the trophy
+    trophyPlatorm = this.physics.add.staticImage(width/2, islandHeight/2, 'island')
+
+    initRandomIslands();
+    // //Create 7 small platforms spaced 100 pixels apart vertically
+    // //Every platform has a star on top
+    // for (let i = 0; i < 1; i++) {
+    //     x = Phaser.Math.Between(50, width - 50);
+    //     y = height - 100 - i * 100
+    //     platforms.create(x, y, 'island');
+    //     stars.create(x, y - (starHeight + islandHeight)/2, 'star');
+    // }
+    // platforms.create(width / 2, 8, 'island');
 
     //Create the player with arcade physics and animations
-    player = this.physics.add.sprite(200, width / 2, 'player');
+    player = this.physics.add.sprite(width/2, height/2, 'player');
 
     //Set the player's bounce and collide with the world bounds
     player.setBounce(0.2);
@@ -113,14 +165,17 @@ function create() {
 
     //Make the player collide with the platforms
     this.physics.add.collider(player, platforms);
-    // this.physics.add.collider(player, stars);
+    this.physics.add.collider(player, trophyPlatform);
+    this.physics.add.collider(player, ground);
     this.physics.add.collider(stars, platforms);
-
+    
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     this.physics.add.overlap(player, stars, collectStar, null, this);
 
     //Create a text object for the score
     scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: '32px', fill: '#000' });
+
+    titleText = this.add.text(16, height - 32, 'ClimberIO', { fontSize: '32px', fill: '#000' });
 
     // Add a container for the trophy. Using a group because I don't know what I'm doing.
     trophies = this.physics.add.staticGroup();
@@ -128,20 +183,27 @@ function create() {
 
     saws = this.physics.add.group();
     this.physics.add.collider(player, saws, hitSaw, null, this);
-    // this.physics.add.collider(saws, saws);
+    this.physics.add.collider(saws, saws);
     this.physics.add.collider(saws, platforms);
-    // this.physics.add.collider(saws, stars);
+    this.physics.add.collider(saws, trophyPlatform);
+    this.physics.add.collider(saws, ground);
 
-    // Add a health counter
-    //Create a group of hearts
-    hearts = this.add.group();
 
-    //Create 6 hearts and position them in the top right corner
-    for (let i = 0; i < 6; i++) {
-        const row = Math.floor(i / 3);
-        const col = i % 3;
-        hearts.create(width - (heartWidth / 2) - (col * heartWidth), heartHeight / 2 + (row * heartHeight), 'heart');
-    }
+    restartButton = this.add.text(width/2, height/2, "Restart")
+            .setOrigin(0.5)
+            .setPadding(10)
+            .setStyle({ backgroundColor: '#111' })
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => {
+                this.physics.resume();
+                restartButton.setVisible(false);
+                console.log('restarting...');
+                restart();
+            });
+    restartButton
+            .on('pointerover', () => restartButton.setStyle({ fill: '#f39c12' }))
+            .on('pointerout', () => restartButton.setStyle({ fill: '#FFF' }))
+            .setVisible(false);
 
 }
 
@@ -237,21 +299,27 @@ function hitSaw(player, saw)
 
     //Check if the health is zero
     if (health === 0) {
-        //Stop the current scene
-        this.scene.stop('game');
-        //Start another scene that shows the game over screen
-        // this.scene.start('gameover');
-
         this.physics.pause();
-
-        player.setTint(0xff0000);
-
+        restartButton.setVisible(true);
+        // player.setTint(0xff0000);
         player.anims.play('turn');
-
-        gameOver = true;
     }
-
 }
+
+// Source: https://webtips.dev/webtips/phaser/interactive-buttons-in-phaser3
+class Button {
+    constructor(x, y, label, scene, callback) {
+        const button = scene.add.text(x, y, label)
+            .setOrigin(0.5)
+            .setPadding(10)
+            .setStyle({ backgroundColor: '#111' })
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => callback())
+            .on('pointerover', () => button.setStyle({ fill: '#f39c12' }))
+            .on('pointerout', () => button.setStyle({ fill: '#FFF' }));
+    }
+}
+
 
 </script>
 </body>
