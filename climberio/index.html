@@ -48,6 +48,11 @@ let health = maxHealth;
 let hearts;
 let gameOverText;
 let restartButton;
+let background;
+let healingIsland;
+let healingHeart;
+let trophyCount = 0; // spawn a new healing heart every 2 trophies
+
 
 //Load the assets in the preload function
 function preload() {
@@ -58,6 +63,8 @@ function preload() {
     this.load.spritesheet('player', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     this.load.image('saw', 'assets/small_saw.png');
     this.load.image('heart', 'assets/heart.png'); // 48x48
+    this.load.image('background', 'assets/background.png');
+    this.load.image('heart32', 'assets/heart32.png'); // 32x32
 }
 
 const starHeight = 22;
@@ -67,6 +74,8 @@ const sawHeight = 32;
 const sawWidth = 32;
 const heartWidth = 48;
 const heartHeight = 48;
+const healingHeartHeight = 32;
+
 
 function restart() {
     hearts.children.iterate(function (heart) {
@@ -74,40 +83,73 @@ function restart() {
         heart.setVisible(true);
     });
     health = maxHealth;
+    trophyCount = 0;
+    healingHeart.disableBody(true, true)
 
     score = 0;
     scoreText.setText('Score: ' + score);
 
+    
     saws.clear(true); // destroy all saws
 
     player.setPosition(width/2, height/2);
 
-    initRandomIslands();
+    initIslands();
 
-}
-
-function initRandomIslands(){
-    platforms.clear(true);
-    stars.clear(true);
-
-    //Create 7 small platforms spaced 100 pixels apart vertically
-    //Every platform has a star on top
-    for (let i = 0; i < 7; i++) {
-        x = Phaser.Math.Between(50, width - 50);
-        y = height - 100 - i * 100
-        platforms.create(x, y, 'island');
-        stars.create(x, y - (starHeight + islandHeight)/2, 'star');
+    if (healingHeart.body.enable) {
+        healingHeart.disableBody();
     }
 
 }
 
+function initIslands(){
+    //Create small platforms spaced 100 pixels apart vertically
+    //Every platform has a star on top
+
+    platforms.clear(true);
+    stars.clear(true);
+
+    // //random islands
+    // for (let i = 0; i < 7; i++) {
+    //     x = Phaser.Math.Between(50, width - 50);
+    //     y = height - 100 - i * 100
+    //     platforms.create(x, y, 'island');
+    //     stars.create(x, y - (starHeight + islandHeight)/2, 'star');
+    // }
+
+    // // zig zag islands
+    // var dir = -1;
+    // for (let i = 0; i < 7; i++) {
+    //     dir *= -1;
+    //     // x = (width / 2) + (dir * 100) // narrow spacing: agility challenge
+    //     x = (width / 2) + (dir * width / 4) // wider spacing: open space challenge
+    //     y = height - 100 - i * 100
+    //     platforms.create(x, y, 'island');
+    //     stars.create(x, y - (starHeight + islandHeight)/2, 'star');
+    // }
+
+    // funnel islands
+    n = 7
+    for (let i = 0; i < n; i++) {
+        // row = Math.floor((i - 1) / (i/2));
+        row = Math.round(i / 2);
+        y = height - 100 - row * 100;
+        dir = (i % 2) * 2 - 1; // 1 or -1
+        x = (width / 2) - dir * (row * (width / 2 - 50) / ((n - 1)/2)) // last island is embedded in wall
+        platforms.create(x, y, 'island');
+        stars.create(x, y - (starHeight + islandHeight)/2, 'star');
+    }
+}
+
 //Create the game objects in the create function
 function create() {
+    background = this.add.image(width/2, height/2, 'background');
+
     // Add a health counter
     //Create a group of hearts
     hearts = this.add.group();
 
-    //Create 6 hearts and position them in the top right corner
+    //Create 6 health hearts and position them in the top right corner
     for (let i = maxHealth-1; i > -1; i--) {
         const row = Math.floor(i / (maxHealth/2));
         const col = i % (maxHealth/2);
@@ -122,18 +164,13 @@ function create() {
     ground = this.physics.add.staticImage(300, 800, 'ground').setScale(2).refreshBody();
     // platforms.create(300, 800, 'ground').setScale(2).refreshBody();
     //Create a small island for the trophy
-    trophyPlatorm = this.physics.add.staticImage(width/2, islandHeight/2, 'island')
+    trophyPlatform = this.physics.add.staticImage(width/2, islandHeight/2, 'island')
 
-    initRandomIslands();
-    // //Create 7 small platforms spaced 100 pixels apart vertically
-    // //Every platform has a star on top
-    // for (let i = 0; i < 1; i++) {
-    //     x = Phaser.Math.Between(50, width - 50);
-    //     y = height - 100 - i * 100
-    //     platforms.create(x, y, 'island');
-    //     stars.create(x, y - (starHeight + islandHeight)/2, 'star');
-    // }
-    // platforms.create(width / 2, 8, 'island');
+    initIslands();
+
+    healingPlatform = this.physics.add.staticImage(width/2, height/4, 'island')
+    healingHeart = this.physics.add.staticImage(width/2, height/4 - islandHeight / 2 - healingHeartHeight / 2, 'heart32');
+    healingHeart.disableBody(true, true); // healing heart only appears after collecting trophy twice.
 
     //Create the player with arcade physics and animations
     player = this.physics.add.sprite(width/2, height/2, 'player');
@@ -166,11 +203,14 @@ function create() {
     //Make the player collide with the platforms
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, trophyPlatform);
+    this.physics.add.collider(player, healingPlatform);
     this.physics.add.collider(player, ground);
     this.physics.add.collider(stars, platforms);
     
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     this.physics.add.overlap(player, stars, collectStar, null, this);
+    this.physics.add.overlap(player, healingHeart, collectHealingHeart, null, this);
+
 
     //Create a text object for the score
     scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: '32px', fill: '#000' });
@@ -186,6 +226,7 @@ function create() {
     this.physics.add.collider(saws, saws);
     this.physics.add.collider(saws, platforms);
     this.physics.add.collider(saws, trophyPlatform);
+    this.physics.add.collider(saws, healingPlatform);
     this.physics.add.collider(saws, ground);
 
 
@@ -265,6 +306,7 @@ function collectStar(player, star) {
 
 function collectTrophy(player, trophy) {
     trophy.disableBody(true, true);
+    trophyCount++;
 
     //  Add and update the score
     score += 30;
@@ -282,6 +324,17 @@ function collectTrophy(player, trophy) {
     saw.setVelocity(Phaser.Math.Between(-200, 200), 20);
     saw.allowGravity = false;
 
+    if (((trophyCount % 2) === 0) && !healingHeart.body.enable) {
+        healingHeart.enableBody(true, healingHeart.x, healingHeart.y, true, true);
+    }
+}
+
+function collectHealingHeart(player, heart) {
+    if (healingHeart.body.enable && (health < maxHealth)) {
+        health++;
+        healingHeart.disableBody(true, true);
+        hearts.getLast(false).setActive(true).setVisible(true);
+    }
 }
 
 function hitSaw(player, saw)
@@ -303,20 +356,6 @@ function hitSaw(player, saw)
         restartButton.setVisible(true);
         // player.setTint(0xff0000);
         player.anims.play('turn');
-    }
-}
-
-// Source: https://webtips.dev/webtips/phaser/interactive-buttons-in-phaser3
-class Button {
-    constructor(x, y, label, scene, callback) {
-        const button = scene.add.text(x, y, label)
-            .setOrigin(0.5)
-            .setPadding(10)
-            .setStyle({ backgroundColor: '#111' })
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => callback())
-            .on('pointerover', () => button.setStyle({ fill: '#f39c12' }))
-            .on('pointerout', () => button.setStyle({ fill: '#FFF' }));
     }
 }
 
