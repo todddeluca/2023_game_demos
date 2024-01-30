@@ -18,7 +18,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 300 },
+            gravity: { y: 150 },
             debug: false
         }
     },
@@ -63,12 +63,13 @@ function preload() {
     this.load.spritesheet('player', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     this.load.image('saw', 'assets/small_saw.png');
     this.load.image('heart', 'assets/heart.png'); // 48x48
-    this.load.image('background', 'assets/background.png');
+    this.load.image('background', 'assets/background7.png');
     this.load.image('heart32', 'assets/heart32.png'); // 32x32
 }
 
 const starHeight = 22;
 const islandHeight = 16;
+const islandWidth = 100;
 const trophyHeight = 56;
 const sawHeight = 32;
 const sawWidth = 32;
@@ -172,6 +173,12 @@ function create() {
     healingHeart = this.physics.add.staticImage(width/2, height/4 - islandHeight / 2 - healingHeartHeight / 2, 'heart32');
     healingHeart.disableBody(true, true); // healing heart only appears after collecting trophy twice.
 
+    // 3 Heyward platforms
+    lowerPlatform = this.physics.add.staticImage(width/2, height/2 + (2 * islandHeight), 'island');
+    leftPlatform = this.physics.add.staticImage(width/4 - 5, height/8 + islandHeight/2, 'island');
+    rightPlatform = this.physics.add.staticImage(3*width/4, height/8 + islandHeight/2, 'island');
+    upperPlatform = this.physics.add.staticImage(islandWidth/2, height/8 - islandHeight/2, 'island');
+
     //Create the player with arcade physics and animations
     player = this.physics.add.sprite(width/2, height/2, 'player');
 
@@ -206,6 +213,11 @@ function create() {
     this.physics.add.collider(player, healingPlatform);
     this.physics.add.collider(player, ground);
     this.physics.add.collider(stars, platforms);
+    this.physics.add.collider(player, lowerPlatform);
+    this.physics.add.collider(player, leftPlatform);
+    this.physics.add.collider(player, rightPlatform);
+    // this.physics.add.collider(player, upperPlatform);
+    
     
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     this.physics.add.overlap(player, stars, collectStar, null, this);
@@ -228,6 +240,10 @@ function create() {
     this.physics.add.collider(saws, trophyPlatform);
     this.physics.add.collider(saws, healingPlatform);
     this.physics.add.collider(saws, ground);
+    this.physics.add.collider(saws, lowerPlatform);
+    this.physics.add.collider(saws, leftPlatform);
+    this.physics.add.collider(saws, rightPlatform);
+    this.physics.add.collider(saws, upperPlatform);
 
 
     restartButton = this.add.text(width/2, height/2, "Restart")
@@ -255,12 +271,15 @@ function update() {
 
     //Move the player left or right based on input
     if (cursors.left.isDown) {
-        player.setVelocityX(-400);
+        player.setVelocityX(-200);
         player.anims.play('left', true);
     }
     else if (cursors.right.isDown) {
-        player.setVelocityX(400);
+        player.setVelocityX(200);
         player.anims.play('right', true);
+    }
+    else if (cursors.down.isDown) {
+        player.setPosition(width/2, height/2);
     }
     else {
         player.setVelocityX(0);
@@ -269,7 +288,7 @@ function update() {
 
     //Make the player jump if on a platform and up key is pressed
     if (cursors.up.isDown && player.body.touching.down) {
-        player.setVelocityY(-640);
+        player.setVelocityY(-320);
     }
 
     //Wrap the player around the world bounds horizontally
